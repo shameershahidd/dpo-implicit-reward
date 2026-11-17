@@ -11,3 +11,8 @@ max_response_tokens: 32
 rb_max_prompt_tokens: 96
 rb_max_response_tokens: 32
 data_dir: data/processed
+# plumbing only: a few real optimizer steps on a tiny set, not a training recipe
+per_device_batch_size: 2
+grad_accum_steps: 2
+effective_batch_size: 4
+max_steps: 3

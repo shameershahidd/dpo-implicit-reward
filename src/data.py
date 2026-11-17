@@ -96,6 +96,8 @@ def apply_limits(rows, tok, max_prompt, max_response):
             stats["dropped_long_prompt"] += 1
             continue
         r = dict(r)
+        # keep the token length from before truncation, the failure analysis needs it later
+        r["chosen_len_orig"], r["rejected_len_orig"] = len(c_ids), len(r_ids)
         differs = False
         for side, ids in (("chosen", c_ids), ("rejected", r_ids)):
             if len(ids) > max_response:

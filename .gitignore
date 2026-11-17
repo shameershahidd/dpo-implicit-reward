@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 CLAUDE.md
 .claude/
+results/smoke/
+results/data_report_smoke.json

@@ -46,3 +46,36 @@ def test_rewardbench_category_mapping():
     assert len(RB_CATEGORY) == 23
     counts = {c: list(RB_CATEGORY.values()).count(c) for c in set(RB_CATEGORY.values())}
     assert counts == {"Chat": 5, "Chat Hard": 6, "Safety": 5, "Reasoning": 7}
+
+
+class FakeTokenizer:
+    # one token per word, enough to test the length logic without downloading a tokenizer
+    def apply_chat_template(self, messages, add_generation_prompt=False, tokenize=False):
+        return " ".join(m["content"] for m in messages)
+
+    def __call__(self, texts, add_special_tokens=False):
+        if isinstance(texts, str):
+            return {"input_ids": texts.split()}
+        return {"input_ids": [t.split() for t in texts]}
+
+    def decode(self, ids):
+        return " ".join(ids)
+
+
+def pair(prompt, chosen, rejected):
+    return {"prompt": [{"role": "user", "content": prompt}],
+            "chosen": [{"role": "assistant", "content": chosen}],
+            "rejected": [{"role": "assistant", "content": rejected}]}
+
+
+def test_limits_keep_original_lengths():
+    from data import apply_limits
+    rows = [pair("a b", "w1 w2 w3 w4 w5 w6", "x1 x2"),
+            pair("p q r s t u", "c", "d"),
+            pair("a b", "same same same same z1", "same same same same z2")]
+    kept, stats, _ = apply_limits(rows, FakeTokenizer(), 3, 4)
+    assert stats["dropped_long_prompt"] == 1
+    assert stats["dropped_identical_after_truncation"] == 1
+    assert len(kept) == 1
+    assert kept[0]["chosen"][0]["content"] == "w1 w2 w3 w4"
+    assert kept[0]["chosen_len_orig"] == 6 and kept[0]["rejected_len_orig"] == 2

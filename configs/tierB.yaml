@@ -11,3 +11,7 @@ max_response_tokens: 128
 rb_max_prompt_tokens: 512
 rb_max_response_tokens: 256
 data_dir: data/processed
+per_device_batch_size: 2
+grad_accum_steps: 8
+effective_batch_size: 16
+max_steps: -1
