@@ -1,0 +1,298 @@
+{
+ "tier": "tierA",
+ "seed": 42,
+ "max_prompt_tokens": 256,
+ "max_response_tokens": 128,
+ "rows_raw": 60917,
+ "cleaning_dropped": {
+  "identical_responses": 62,
+  "empty_response": 9
+ },
+ "rows_after_cleaning": 60846,
+ "prompt_tokens_before_limits": {
+  "p50": 107.0,
+  "p90": 450.0,
+  "p99": 1157.550000000003
+ },
+ "response_tokens_before_limits": {
+  "p50": 205.0,
+  "p90": 599.0,
+  "p99": 883.0
+ },
+ "limits": {
+  "dropped_long_prompt": 12791,
+  "dropped_identical_after_truncation": 0,
+  "truncated_chosen": 34137,
+  "truncated_rejected": 28610,
+  "roundtrip_pairs_differing": 59
+ },
+ "rows_after_limits": 48055,
+ "train_pool_size": 45555,
+ "splits": {
+  "train": {
+   "pairs": 2000,
+   "max_sequence_tokens": 386
+  },
+  "val": {
+   "pairs": 500,
+   "max_sequence_tokens": 386
+  },
+  "test": {
+   "pairs": 2000,
+   "max_sequence_tokens": 386
+  }
+ },
+ "rewardbench": {
+  "max_prompt_tokens": 512,
+  "max_response_tokens": 256,
+  "prompt_tokens_before_limits": {
+   "p50": 66.0,
+   "p90": 182.0,
+   "p99": 337.15999999999985
+  },
+  "response_tokens_before_limits": {
+   "p50": 103.0,
+   "p90": 395.10000000000036,
+   "p99": 845.2400000000016
+  },
+  "total": 2985,
+  "kept": 2976,
+  "dropped_long_prompt": 1,
+  "dropped_identical_after_truncation": 8,
+  "truncated_chosen": 457,
+  "truncated_rejected": 732,
+  "roundtrip_pairs_differing": 1,
+  "per_subset": {
+   "alpacaeval-easy": {
+    "category": "Chat",
+    "total": 100,
+    "kept": 100,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 72,
+    "truncated_rejected": 4,
+    "roundtrip_pairs_differing": 0
+   },
+   "alpacaeval-hard": {
+    "category": "Chat",
+    "total": 95,
+    "kept": 95,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 56,
+    "truncated_rejected": 2,
+    "roundtrip_pairs_differing": 0
+   },
+   "alpacaeval-length": {
+    "category": "Chat",
+    "total": 95,
+    "kept": 95,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 67,
+    "truncated_rejected": 58,
+    "roundtrip_pairs_differing": 0
+   },
+   "mt-bench-easy": {
+    "category": "Chat",
+    "total": 28,
+    "kept": 28,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 13,
+    "truncated_rejected": 16,
+    "roundtrip_pairs_differing": 0
+   },
+   "mt-bench-med": {
+    "category": "Chat",
+    "total": 40,
+    "kept": 40,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 13,
+    "truncated_rejected": 15,
+    "roundtrip_pairs_differing": 0
+   },
+   "mt-bench-hard": {
+    "category": "Chat Hard",
+    "total": 37,
+    "kept": 37,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 10,
+    "truncated_rejected": 12,
+    "roundtrip_pairs_differing": 0
+   },
+   "llmbar-natural": {
+    "category": "Chat Hard",
+    "total": 100,
+    "kept": 99,
+    "dropped_long_prompt": 1,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 4,
+    "truncated_rejected": 5,
+    "roundtrip_pairs_differing": 0
+   },
+   "llmbar-adver-neighbor": {
+    "category": "Chat Hard",
+    "total": 134,
+    "kept": 134,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 2,
+    "truncated_rejected": 20,
+    "roundtrip_pairs_differing": 0
+   },
+   "llmbar-adver-GPTInst": {
+    "category": "Chat Hard",
+    "total": 92,
+    "kept": 92,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 9,
+    "truncated_rejected": 50,
+    "roundtrip_pairs_differing": 0
+   },
+   "llmbar-adver-GPTOut": {
+    "category": "Chat Hard",
+    "total": 47,
+    "kept": 47,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 1,
+    "truncated_rejected": 1,
+    "roundtrip_pairs_differing": 0
+   },
+   "llmbar-adver-manual": {
+    "category": "Chat Hard",
+    "total": 46,
+    "kept": 46,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 4,
+    "truncated_rejected": 12,
+    "roundtrip_pairs_differing": 0
+   },
+   "refusals-dangerous": {
+    "category": "Safety",
+    "total": 100,
+    "kept": 100,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 4,
+    "truncated_rejected": 83,
+    "roundtrip_pairs_differing": 0
+   },
+   "refusals-offensive": {
+    "category": "Safety",
+    "total": 100,
+    "kept": 100,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 0,
+    "truncated_rejected": 34,
+    "roundtrip_pairs_differing": 0
+   },
+   "xstest-should-respond": {
+    "category": "Safety",
+    "total": 250,
+    "kept": 250,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 24,
+    "truncated_rejected": 1,
+    "roundtrip_pairs_differing": 0
+   },
+   "xstest-should-refuse": {
+    "category": "Safety",
+    "total": 154,
+    "kept": 154,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 1,
+    "truncated_rejected": 14,
+    "roundtrip_pairs_differing": 0
+   },
+   "donotanswer": {
+    "category": "Safety",
+    "total": 136,
+    "kept": 136,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 28,
+    "truncated_rejected": 67,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-python": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 164,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 0,
+    "truncated_rejected": 0,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-go": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 163,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 1,
+    "truncated_chosen": 2,
+    "truncated_rejected": 3,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-cpp": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 163,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 1,
+    "truncated_chosen": 3,
+    "truncated_rejected": 3,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-js": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 163,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 1,
+    "truncated_chosen": 6,
+    "truncated_rejected": 6,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-rust": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 160,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 4,
+    "truncated_chosen": 9,
+    "truncated_rejected": 9,
+    "roundtrip_pairs_differing": 0
+   },
+   "hep-java": {
+    "category": "Reasoning",
+    "total": 164,
+    "kept": 163,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 1,
+    "truncated_chosen": 4,
+    "truncated_rejected": 4,
+    "roundtrip_pairs_differing": 0
+   },
+   "math-prm": {
+    "category": "Reasoning",
+    "total": 447,
+    "kept": 447,
+    "dropped_long_prompt": 0,
+    "dropped_identical_after_truncation": 0,
+    "truncated_chosen": 125,
+    "truncated_rejected": 313,
+    "roundtrip_pairs_differing": 1
+   }
+  }
+ }
+}

@@ -1,0 +1,11 @@
+data/
+checkpoints/
+*.pt
+*.safetensors
+wandb/
+.env
+__pycache__/
+.venv/
+*.pyc
+CLAUDE.md
+.claude/

@@ -1,0 +1,13 @@
+# tiny run for the cpu smoke test
+tier: smoke
+seed: 42
+model_name: Qwen/Qwen2.5-0.5B-Instruct
+n_train: 64
+n_val: 32
+n_test: 32
+max_prompt_tokens: 96
+max_response_tokens: 32
+# reward-bench limits, used for evaluation only
+rb_max_prompt_tokens: 96
+rb_max_response_tokens: 32
+data_dir: data/processed
