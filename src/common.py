@@ -74,8 +74,9 @@ def write_env_json(run_dir, cfg, seed):
 
 def make_lora_config(task_type):
     # one lora recipe for both methods, only the task type differs
+    # lora_dropout is 0.0 because TRL zeroes every dropout layer in both trainers anyway, so an earlier 0.05 never did anything
     return LoraConfig(
-        r=16, lora_alpha=32, lora_dropout=0.05, task_type=task_type,
+        r=16, lora_alpha=32, lora_dropout=0.0, task_type=task_type,
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     )
 
@@ -112,7 +113,7 @@ def trainer_kwargs(cfg, run_dir, lr, seed, max_length):
         assert cfg["effective_batch_size"] == 16
     cuda = torch.cuda.is_available()
     return dict(
-        output_dir=run_dir, learning_rate=lr, seed=seed,
+        output_dir=run_dir, learning_rate=lr, seed=seed, data_seed=seed,
         num_train_epochs=1, max_steps=cfg["max_steps"],
         per_device_train_batch_size=cfg["per_device_batch_size"],
         per_device_eval_batch_size=cfg["per_device_batch_size"],
@@ -120,7 +121,7 @@ def trainer_kwargs(cfg, run_dir, lr, seed, max_length):
         max_length=max_length, gradient_checkpointing=True,
         # both trainers default to bf16, which a t4 does not have, so set it explicitly
         bf16=False, fp16=cuda, use_cpu=not cuda,
-        report_to="none", save_strategy="no", eval_strategy="no", logging_steps=1,
+        report_to="none", save_strategy="no", eval_strategy="no", logging_steps=cfg["logging_steps"],
     )
 
 
@@ -154,7 +155,7 @@ def run_training(trainer, run_dir, eval_key, info, t0):
     write_json(os.path.join(run_dir, "metrics.json"), {
         **info,
         "val_accuracy": val[eval_key],
-        "final_train_loss": losses[-1],
+        "last_logged_train_loss": losses[-1],
         "mean_train_loss": result.training_loss,
         "steps": steps,
         "seconds_per_step": train_seconds / steps,

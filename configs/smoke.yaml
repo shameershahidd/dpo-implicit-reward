@@ -16,3 +16,5 @@ per_device_batch_size: 2
 grad_accum_steps: 2
 effective_batch_size: 4
 max_steps: 3
+# the smoke run has only 3 steps, so log every step to get a last logged loss
+logging_steps: 1
