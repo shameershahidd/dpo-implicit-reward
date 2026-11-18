@@ -55,11 +55,14 @@ def difference_interval(correct_a, correct_b, n_boot=N_BOOT, seed=BOOT_SEED):
 def hypothesis_verdict(correct_rm, correct_dpo, margin_points=3.0, n_boot=N_BOOT, seed=BOOT_SEED):
     # the hypothesis: the dpo implicit reward is within 3 points of the reward model
     # look at the 95 percent interval of (reward model accuracy minus dpo accuracy)
+    # supported only if the whole interval sits inside (-3, +3), each side that is clearly outside gets its own verdict
     result = difference_interval(correct_rm, correct_dpo, n_boot, seed)
     margin = margin_points / 100
     if result["lo"] > margin:
-        result["verdict"] = "refuted"
-    elif result["hi"] < margin:
+        result["verdict"] = f"refuted (reward model ahead by more than {margin_points:g} points)"
+    elif result["hi"] < -margin:
+        result["verdict"] = f"DPO ahead by more than {margin_points:g} points"
+    elif result["lo"] > -margin and result["hi"] < margin:
         result["verdict"] = f"supported (within {margin_points:g} points)"
     else:
         result["verdict"] = "inconclusive"

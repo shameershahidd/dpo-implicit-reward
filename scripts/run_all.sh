@@ -41,14 +41,18 @@ for beta in $BETAS; do
   try $PYTHON src/train_dpo.py --config $CONFIG --lr $DPO_LR --beta $beta
 done
 
-echo "== 6. score on the test split"
-try $PYTHON src/score.py --config $CONFIG --run_dir "$RM_RUN" --splits test
+echo "== 6. score on the test split, and on val for check b"
+# check b: our strict val accuracy must match the accuracy the trainer recorded, or the scorer is wrong
+SCORED="$RM_RUN"
+try $PYTHON src/score.py --config $CONFIG --run_dir "$RM_RUN" --splits test val
 for beta in $BETAS; do
   for run in results/$TIER/dpo_beta${beta}_lr${DPO_LR}_seed*; do
-    try $PYTHON src/score.py --config $CONFIG --run_dir "$run" --splits test
+    try $PYTHON src/score.py --config $CONFIG --run_dir "$run" --splits test val
+    SCORED="$SCORED $run"
   done
 done
 $PYTHON src/score.py --config $CONFIG --baselines --splits test
+$PYTHON scripts/check_b.py --config $CONFIG --run_dirs $SCORED
 
 echo "== 7. summary"
 $PYTHON scripts/summary.py --config $CONFIG

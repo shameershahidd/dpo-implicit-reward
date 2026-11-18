@@ -2,6 +2,7 @@ import os
 import sys
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from stats import (accuracy, accuracy_interval, bootstrap_means, correctness, difference_interval,
@@ -42,7 +43,7 @@ def test_verdict_refuted_for_a_clear_gap():
     a[5000:6000] = 1.0
     result = hypothesis_verdict(a, b)
     assert abs(result["difference"] - 0.10) < 1e-12
-    assert result["lo"] > 0.03 and result["verdict"] == "refuted"
+    assert result["lo"] > 0.03 and result["verdict"] == "refuted (reward model ahead by more than 3 points)"
 
 
 def test_verdict_supported_when_the_gap_is_precisely_small():
@@ -62,6 +63,29 @@ def test_verdict_inconclusive_for_a_small_sample():
     result = hypothesis_verdict(a, b)
     assert abs(result["difference"] - 0.05) < 1e-12
     assert result["lo"] < 0.03 < result["hi"] and result["verdict"] == "inconclusive"
+
+
+def test_verdict_dpo_ahead_for_a_clear_gap_the_other_way():
+    b = np.array([1.0] * 5000 + [0.0] * 5000)
+    a = b.copy()
+    b[5000:6000] = 1.0
+    result = hypothesis_verdict(a, b)
+    assert result["hi"] < -0.03 and result["verdict"] == "DPO ahead by more than 3 points"
+
+
+@pytest.mark.parametrize("lo, hi, expected", [
+    (-1.0, 2.0, "supported (within 3 points)"),
+    (3.5, 6.0, "refuted (reward model ahead by more than 3 points)"),
+    (-6.0, -3.5, "DPO ahead by more than 3 points"),
+    (0.25, 4.35, "inconclusive"),
+    (-4.35, -0.25, "inconclusive"),
+    (-3.5, 2.0, "inconclusive"),
+])
+def test_verdict_for_given_intervals_in_points(monkeypatch, lo, hi, expected):
+    # the four outcomes straight from the interval ends, so the boundaries are tested exactly
+    fake = {"difference": (lo + hi) / 200, "lo": lo / 100, "hi": hi / 100}
+    monkeypatch.setattr("stats.difference_interval", lambda *args: dict(fake))
+    assert hypothesis_verdict(None, None)["verdict"] == expected
 
 
 def test_verdict_for_identical_rankers_is_supported():

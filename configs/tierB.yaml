@@ -1,8 +1,8 @@
-# same limits as tierA, the train size is set after timing runs on the t4
+# same as tierA except for the larger train set
 tier: tierB
 seed: 42
 model_name: Qwen/Qwen2.5-0.5B-Instruct
-n_train: TODO
+n_train: 6000
 n_val: 500
 n_test: 2000
 max_prompt_tokens: 256

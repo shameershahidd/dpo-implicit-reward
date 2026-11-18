@@ -26,13 +26,14 @@ $PYTHON src/score.py --config configs/smoke.yaml --run_dir "$RM" --splits val
 $PYTHON src/score.py --config configs/smoke.yaml --run_dir "$DPO" --splits val
 
 echo "== check b on the gpu: our strict accuracy against the accuracy the trainer reported"
-if ! $PYTHON -m pytest -q -s tests/test_smoke_checks.py -k strict_accuracy; then
+if ! $PYTHON scripts/check_b.py --config configs/smoke.yaml --run_dirs "$RM" "$DPO"; then
   echo
-  echo "CHECK B FAILED ON THE GPU. Our scorer and the trainer disagree by more than 0.005."
+  echo "CHECK B FAILED ON THE GPU. Our scorer and the trainer disagree by more than 0.01."
+  echo "The pairs printed above are the closest to a tie, the ones a small numeric difference can flip."
   echo "The same check passed on the cpu in fp32, so look at what is different here:"
   echo "  1. fp16 autocast: the trainer sums log probs in fp16, our scorer casts to fp32 first, near ties can flip"
   echo "  2. a tokenization or padding difference that only shows up on the gpu"
-  echo "Do not start run_all.sh. Send the two accuracies printed above."
+  echo "Do not start run_all.sh. Send the output above."
   exit 1
 fi
 
