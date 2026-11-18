@@ -142,23 +142,25 @@ def assert_untouched(name, n_expected, n_trainer, seq_lens, max_length):
     print(f"{name}: {n_trainer} examples, longest sequence {max(seq_lens)} tokens, max_length {max_length}")
 
 
-def run_training(trainer, run_dir, eval_key, info, t0):
+def run_training(trainer, run_dir, eval_key, info, t0, skip_eval=False):
     write_json(os.path.join(run_dir, "train_args.json"), trainer.args.to_dict())
     start = time.time()
     result = trainer.train()
     train_seconds = time.time() - start
     steps = trainer.state.global_step
-    val = trainer.evaluate()
+    # a timing run only measures speed and memory, so it can skip the slow evaluation
+    val = {} if skip_eval else trainer.evaluate()
     trainer.model.save_pretrained(os.path.join(run_dir, "adapter"))
     losses = [h["loss"] for h in trainer.state.log_history if "loss" in h]
     # metrics.json is written last, its existence means the run finished
     write_json(os.path.join(run_dir, "metrics.json"), {
         **info,
-        "val_accuracy": val[eval_key],
+        "val_accuracy": None if skip_eval else val[eval_key],
         "last_logged_train_loss": losses[-1],
         "mean_train_loss": result.training_loss,
         "steps": steps,
         "seconds_per_step": train_seconds / steps,
         "total_minutes": (time.time() - t0) / 60,
+        "peak_gpu_memory_gb": torch.cuda.max_memory_allocated() / 1e9 if torch.cuda.is_available() else None,
         "val_metrics": val,
     })

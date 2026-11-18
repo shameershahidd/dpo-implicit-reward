@@ -1,4 +1,4 @@
-# main tier, sequences are at most 384 tokens
+# main tier, sequences are at most 386 tokens (256 prompt, 128 response, 2 end tokens)
 tier: tierA
 seed: 42
 model_name: Qwen/Qwen2.5-0.5B-Instruct
@@ -16,3 +16,5 @@ grad_accum_steps: 8
 effective_batch_size: 16
 max_steps: -1
 logging_steps: 10
+# used only by score.py, no gradients are kept, so it is not tied to the training batch size
+score_batch_size: 4

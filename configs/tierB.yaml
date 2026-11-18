@@ -16,3 +16,5 @@ grad_accum_steps: 8
 effective_batch_size: 16
 max_steps: -1
 logging_steps: 10
+# used only by score.py, no gradients are kept, so it is not tied to the training batch size
+score_batch_size: 4

@@ -51,18 +51,23 @@ def main():
     parser.add_argument("--lr", type=float, required=True)
     parser.add_argument("--beta", type=float, required=True)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--max_steps", type=int, default=None, help="timing run: stop after this many steps, write to results/throwaway")
     args = parser.parse_args()
 
     t0 = time.time()
     cfg = load_config(args.config)
     seed = cfg["seed"] if args.seed is None else args.seed
-    run_dir = make_run_dir(cfg["tier"], f"dpo_beta{args.beta}_lr{args.lr}_seed{seed}")
+    # a timing run never lands in the tier folder, so select_best can not mistake it for a candidate
+    out_tier = cfg["tier"] if args.max_steps is None else "throwaway"
+    if args.max_steps is not None:
+        cfg = dict(cfg, max_steps=args.max_steps)
+    run_dir = make_run_dir(out_tier, f"dpo_beta{args.beta}_lr{args.lr}_seed{seed}")
     if os.path.exists(os.path.join(run_dir, "metrics.json")):
         print("metrics.json exists, skipping", run_dir)
         return
     write_env_json(run_dir, cfg, seed)
     trainer, tok, info = build_trainer(cfg, args.lr, args.beta, seed, run_dir)
-    run_training(trainer, run_dir, "eval_rewards/accuracies", info, t0)
+    run_training(trainer, run_dir, "eval_rewards/accuracies", info, t0, skip_eval=args.max_steps is not None)
 
 
 if __name__ == "__main__":

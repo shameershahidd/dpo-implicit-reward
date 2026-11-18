@@ -18,3 +18,5 @@ effective_batch_size: 4
 max_steps: 3
 # the smoke run has only 3 steps, so log every step to get a last logged loss
 logging_steps: 1
+# used only by score.py, no gradients are kept, so it is not tied to the training batch size
+score_batch_size: 4

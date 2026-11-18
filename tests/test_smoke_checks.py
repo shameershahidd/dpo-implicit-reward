@@ -119,8 +119,9 @@ def test_reward_scorer_matches_the_trainers_forward_pass(cfg, rm_trainer):
 @pytest.mark.parametrize("prefix", ["rm_lr", "dpo_beta"])
 def test_our_strict_accuracy_matches_what_the_trainer_reported(cfg, prefix):
     # check b: the trainer's val accuracy (strict, tie counts as wrong) against ours on the same pairs
-    runs = glob.glob(str(ROOT / "results/smoke" / f"{prefix}*"))
-    if not runs or not os.path.exists(os.path.join(runs[0], "scores_val.csv")):
+    # several runs can exist, use one that has been scored on the validation split
+    runs = [os.path.dirname(p) for p in glob.glob(str(ROOT / "results/smoke" / f"{prefix}*" / "scores_val.csv"))]
+    if not runs:
         pytest.skip("run scripts/smoke_test.sh first")
     with open(os.path.join(runs[0], "metrics.json")) as f:
         trainer_accuracy = json.load(f)["val_accuracy"]

@@ -52,12 +52,17 @@ def difference_interval(correct_a, correct_b, n_boot=N_BOOT, seed=BOOT_SEED):
     return {"difference": float(np.mean(correct_a) - np.mean(correct_b)), "lo": lo, "hi": hi}
 
 
-def beats_by_more_than(correct_a, correct_b, margin_points=3.0, n_boot=N_BOOT, seed=BOOT_SEED):
-    # the proposal's falsifiable outcome: a beats b by more than margin_points
-    # supported only if even the low end of the 95 percent difference interval is above the margin
-    result = difference_interval(correct_a, correct_b, n_boot, seed)
-    result["margin"] = margin_points / 100
-    result["supported"] = result["lo"] > margin_points / 100
+def hypothesis_verdict(correct_rm, correct_dpo, margin_points=3.0, n_boot=N_BOOT, seed=BOOT_SEED):
+    # the hypothesis: the dpo implicit reward is within 3 points of the reward model
+    # look at the 95 percent interval of (reward model accuracy minus dpo accuracy)
+    result = difference_interval(correct_rm, correct_dpo, n_boot, seed)
+    margin = margin_points / 100
+    if result["lo"] > margin:
+        result["verdict"] = "refuted"
+    elif result["hi"] < margin:
+        result["verdict"] = f"supported (within {margin_points:g} points)"
+    else:
+        result["verdict"] = "inconclusive"
     return result
 
 
@@ -85,10 +90,10 @@ def main():
         ci = accuracy_interval(correct)
         print(f"{os.path.basename(run_dir):40s} accuracy {100 * ci['accuracy']:6.2f} "
               f"[{100 * ci['lo']:6.2f}, {100 * ci['hi']:6.2f}]  strict {100 * acc['strict_accuracy']:6.2f}  ties {acc['ties']}")
-    verdict = beats_by_more_than(runs[args.a][1], runs[args.b][1])
+    verdict = hypothesis_verdict(runs[args.a][1], runs[args.b][1])
     print(f"a minus b: {100 * verdict['difference']:.2f} points, 95 percent interval "
           f"[{100 * verdict['lo']:.2f}, {100 * verdict['hi']:.2f}]")
-    print(f"a beats b by more than 3 points (low end above 3): {verdict['supported']}")
+    print("verdict:", verdict["verdict"])
 
 
 if __name__ == "__main__":

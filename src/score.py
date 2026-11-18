@@ -153,10 +153,10 @@ def score_run(cfg, run_dir, splits):
         tokenized = [tokenize_pair(r, tok) for r in rows]
         check_lengths(tokenized, sequence_limit(cfg, split))
         if method == "rm":
-            c, r = reward_model_scores(model, tokenized, tok.pad_token_id, cfg["per_device_batch_size"], device)
+            c, r = reward_model_scores(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
             scores = {"score_chosen": c, "score_rejected": r}
         else:
-            out = dpo_log_ratios(model, tokenized, tok.pad_token_id, cfg["per_device_batch_size"], device)
+            out = dpo_log_ratios(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
             scores = {"score_chosen": out["sum_chosen"], "score_rejected": out["sum_rejected"],
                       "mean_chosen": out["mean_chosen"], "mean_rejected": out["mean_rejected"]}
         pair_table(rows, scores, tokenized).to_csv(path, index=False)

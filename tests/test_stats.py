@@ -4,8 +4,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from stats import (accuracy, accuracy_interval, beats_by_more_than, bootstrap_means, correctness,
-                   difference_interval)
+from stats import (accuracy, accuracy_interval, bootstrap_means, correctness, difference_interval,
+                   hypothesis_verdict)
 
 
 def test_correctness_and_ties():
@@ -35,29 +35,35 @@ def test_paired_difference_of_identical_rankers_is_exactly_zero():
     assert d["difference"] == 0 and d["lo"] == 0 and d["hi"] == 0
 
 
-def test_clear_gap_is_supported():
-    # b is right on half the pairs, a is right on 1000 more of the other half: a 10 point gap on 10000 pairs
+def test_verdict_refuted_for_a_clear_gap():
+    # b is right on half the pairs, the reward model is right on 1000 more of the other half: a 10 point gap on 10000 pairs
     b = np.array([1.0] * 5000 + [0.0] * 5000)
     a = b.copy()
     a[5000:6000] = 1.0
-    result = beats_by_more_than(a, b)
+    result = hypothesis_verdict(a, b)
     assert abs(result["difference"] - 0.10) < 1e-12
-    assert result["lo"] > 0.03 and result["supported"]
+    assert result["lo"] > 0.03 and result["verdict"] == "refuted"
 
 
-def test_gap_in_a_small_sample_is_not_supported():
-    # a 5 point gap on only 100 pairs is too noisy: the low end of the interval is below 3 points
-    b = np.array([1.0] * 50 + [0.0] * 50)
-    a = b.copy()
-    a[50:55] = 1.0
-    result = beats_by_more_than(a, b)
-    assert abs(result["difference"] - 0.05) < 1e-12
-    assert result["lo"] < 0.03 and not result["supported"]
-
-
-def test_gap_below_the_margin_is_not_supported():
-    # a 2 point gap on 10000 pairs is precise but still below 3 points
+def test_verdict_supported_when_the_gap_is_precisely_small():
+    # a 2 point gap on 10000 pairs: the whole interval is below 3 points
     b = np.array([1.0] * 5000 + [0.0] * 5000)
     a = b.copy()
     a[5000:5200] = 1.0
-    assert not beats_by_more_than(a, b)["supported"]
+    result = hypothesis_verdict(a, b)
+    assert result["hi"] < 0.03 and result["verdict"] == "supported (within 3 points)"
+
+
+def test_verdict_inconclusive_for_a_small_sample():
+    # a 5 point gap on only 100 pairs is too noisy: the interval holds both values below and above 3 points
+    b = np.array([1.0] * 50 + [0.0] * 50)
+    a = b.copy()
+    a[50:55] = 1.0
+    result = hypothesis_verdict(a, b)
+    assert abs(result["difference"] - 0.05) < 1e-12
+    assert result["lo"] < 0.03 < result["hi"] and result["verdict"] == "inconclusive"
+
+
+def test_verdict_for_identical_rankers_is_supported():
+    v = np.random.default_rng(2).integers(0, 2, 300).astype(float)
+    assert hypothesis_verdict(v, v)["verdict"] == "supported (within 3 points)"
