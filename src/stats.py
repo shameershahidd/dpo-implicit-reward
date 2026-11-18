@@ -69,6 +69,54 @@ def hypothesis_verdict(correct_rm, correct_dpo, margin_points=3.0, n_boot=N_BOOT
     return result
 
 
+def direction(result):
+    # who is ahead, judged by the 95 percent interval of (reward model minus dpo): an interval holding zero is no clear difference
+    if result["lo"] > 0:
+        return "reward model ahead"
+    if result["hi"] < 0:
+        return "dpo ahead"
+    return "no clear difference"
+
+
+def ordering_label(result_a, result_b):
+    # "same" or "reversed" only when both intervals exclude zero, otherwise the two splits cannot be compared
+    a, b = direction(result_a), direction(result_b)
+    if "no clear difference" in (a, b):
+        return "unclear"
+    return "same" if a == b else "reversed"
+
+
+def category_intervals(correct, categories, n_boot=N_BOOT, seed=BOOT_SEED):
+    # accuracy and interval inside each category, the bootstrap resamples pairs inside the category only
+    correct, categories = np.asarray(correct, dtype=float), np.asarray(categories)
+    out = {}
+    for name in sorted(set(categories)):
+        mask = categories == name
+        out[name] = {"n": int(mask.sum()), **accuracy_interval(correct[mask], n_boot, seed)}
+    return out
+
+
+def category_difference_intervals(correct_a, correct_b, categories, n_boot=N_BOOT, seed=BOOT_SEED):
+    # the paired difference a minus b inside each category
+    correct_a, correct_b, categories = np.asarray(correct_a, dtype=float), np.asarray(correct_b, dtype=float), np.asarray(categories)
+    return {name: difference_interval(correct_a[categories == name], correct_b[categories == name], n_boot, seed)
+            for name in sorted(set(categories))}
+
+
+def section_average_interval(correct, categories, n_boot=N_BOOT, seed=BOOT_SEED):
+    # the reward-bench style score: the mean of the per-category accuracies, so a small category counts as much as a big one
+    # each category is resampled on its own, then the category means are averaged, once per resample
+    correct, categories = np.asarray(correct, dtype=float), np.asarray(categories)
+    resampled, point = [], []
+    for name in sorted(set(categories)):
+        values = correct[categories == name]
+        (means,) = bootstrap_means([values], n_boot, seed)
+        resampled.append(means)
+        point.append(values.mean())
+    lo, hi = interval(np.mean(resampled, axis=0))
+    return {"accuracy": float(np.mean(point)), "lo": lo, "hi": hi}
+
+
 def load_correctness(run_dir, split):
     df = pd.read_csv(os.path.join(run_dir, f"scores_{split}.csv"))
     return df["id"].tolist(), correctness(df["score_chosen"], df["score_rejected"]), df

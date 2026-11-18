@@ -10,4 +10,5 @@ __pycache__/
 CLAUDE.md
 .claude/
 results/smoke/
+figures/smoke/
 results/data_report_smoke.json

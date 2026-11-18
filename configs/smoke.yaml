@@ -10,6 +10,10 @@ max_response_tokens: 32
 # reward-bench limits, used for evaluation only
 rb_max_prompt_tokens: 96
 rb_max_response_tokens: 32
+# score only a small random subset of reward-bench, so the smoke test stays fast
+rb_max_pairs: 40
+# the smoke tier scores reward-bench with the reward model and the best beta only, to save time
+rb_all_betas: false
 data_dir: data/processed
 # plumbing only: a few real optimizer steps on a tiny set, not a training recipe
 per_device_batch_size: 2

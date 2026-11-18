@@ -25,10 +25,12 @@ def tokenize_pair(row, tok):
     # the prompt ends with the generation prompt, the completion is whatever the full chat adds after it,
     # so it includes the trailing <|im_end|> and newline
     prompt_ids = _tokenize(tok, row["prompt"], add_generation_prompt=True, tools=None)["input_ids"]
-    out = {"prompt_ids": prompt_ids}
+    out = {"prompt_ids": prompt_ids, "prefix_mismatch": False}
     for side in ("chosen", "rejected"):
         full = _tokenize(tok, row["prompt"] + row[side], tools=None)["input_ids"]
-        assert full[:len(prompt_ids)] == prompt_ids, "the prompt tokens are not the start of the full chat"
+        # a response that starts with a newline can merge with the newline that ends the prompt into one token
+        # TRL only logs a warning and cuts at the prompt length anyway, so we do the same and record it
+        out["prefix_mismatch"] |= full[:len(prompt_ids)] != prompt_ids
         out[side + "_ids"] = full[len(prompt_ids):]
     return out
 
@@ -39,6 +41,13 @@ def sequence_limit(cfg, split):
         # the evaluation limits, plus the 2 end tokens the chat template adds, plus the same 16 tokens of slack
         return cfg["rb_max_prompt_tokens"] + cfg["rb_max_response_tokens"] + 2 + 16
     return max_length_from_report(cfg)
+
+
+def check_prefixes(tokenized, split):
+    # the training splits have no such merge, so there it would mean something is wrong
+    # reward-bench has some, mostly code answers that start with a newline, they are counted in the report
+    if split != "rewardbench":
+        assert not any(t["prefix_mismatch"] for t in tokenized), "prompt tokens are not the start of the full chat"
 
 
 def check_lengths(tokenized, limit):
@@ -116,6 +125,7 @@ def pair_table(rows, scores, tokenized=None):
              "rejected_len_orig": [r["rejected_len_orig"] for r in rows]}
     if tokenized is not None:
         # completion tokens after truncation, including the 2 end tokens
+        table["prefix_mismatch"] = [t["prefix_mismatch"] for t in tokenized]
         table["chosen_tokens"] = [len(t["chosen_ids"]) for t in tokenized]
         table["rejected_tokens"] = [len(t["rejected_ids"]) for t in tokenized]
     table["chosen_rating"] = [r["chosen_rating"] for r in rows]
@@ -137,29 +147,36 @@ def load_trained_model(method, cfg, tok, run_dir):
     return PeftModel.from_pretrained(base, os.path.join(run_dir, "adapter"))
 
 
+def score_pairs(method, model, tokenized, tok, cfg, device):
+    # the one place that turns a trained model and tokenized pairs into the score columns
+    if method == "rm":
+        c, r = reward_model_scores(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
+        return {"score_chosen": c, "score_rejected": r}
+    out = dpo_log_ratios(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
+    return {"score_chosen": out["sum_chosen"], "score_rejected": out["sum_rejected"],
+            "mean_chosen": out["mean_chosen"], "mean_rejected": out["mean_rejected"]}
+
+
 def score_run(cfg, run_dir, splits):
     with open(os.path.join(run_dir, "metrics.json")) as f:
         metrics = json.load(f)
     method = metrics["method"]
+    paths = {split: os.path.join(run_dir, f"scores_{split}.csv") for split in splits}
+    todo = [split for split in splits if not os.path.exists(paths[split])]
+    for split in set(splits) - set(todo):
+        print("exists, skipping", paths[split])
+    if not todo:
+        return
     tok = load_tokenizer(cfg["model_name"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_trained_model(method, cfg, tok, run_dir).to(device)
-    for split in splits:
-        path = os.path.join(run_dir, f"scores_{split}.csv")
-        if os.path.exists(path):
-            print("exists, skipping", path)
-            continue
+    for split in todo:
         rows = read_rows(cfg, split)
         tokenized = [tokenize_pair(r, tok) for r in rows]
         check_lengths(tokenized, sequence_limit(cfg, split))
-        if method == "rm":
-            c, r = reward_model_scores(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
-            scores = {"score_chosen": c, "score_rejected": r}
-        else:
-            out = dpo_log_ratios(model, tokenized, tok.pad_token_id, cfg["score_batch_size"], device)
-            scores = {"score_chosen": out["sum_chosen"], "score_rejected": out["sum_rejected"],
-                      "mean_chosen": out["mean_chosen"], "mean_rejected": out["mean_rejected"]}
-        pair_table(rows, scores, tokenized).to_csv(path, index=False)
+        check_prefixes(tokenized, split)
+        scores = score_pairs(method, model, tokenized, tok, cfg, device)
+        pair_table(rows, scores, tokenized).to_csv(paths[split], index=False)
         print(split, os.path.basename(run_dir), accuracy(scores["score_chosen"], scores["score_rejected"]))
         if method == "dpo":
             beta = metrics["beta"]

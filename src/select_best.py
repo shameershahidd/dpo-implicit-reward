@@ -45,6 +45,19 @@ def pick_best(candidates):
     return min(ok, key=lambda c: (-c["val_accuracy"], c["lr"]))
 
 
+def best_beta_run(tier_dir, selected, seed):
+    # the beta runs at the selected dpo learning rate, and the best one on validation accuracy only
+    # a tie goes to the smaller beta
+    runs = []
+    for path in sorted(glob.glob(os.path.join(tier_dir, f"dpo_beta*_seed{seed}", "metrics.json"))):
+        with open(path) as f:
+            metrics = json.load(f)
+        if metrics["lr"] == selected["dpo"]["lr"] and not math.isnan(metrics["val_accuracy"]):
+            runs.append({**metrics, "run_dir": os.path.dirname(path)})
+    assert runs, "no finished dpo run at the selected learning rate"
+    return min(runs, key=lambda m: (-m["val_accuracy"], m["beta"])), sorted(runs, key=lambda m: m["beta"])
+
+
 def select(tier_dir, seed, beta_for_lr):
     selected = {}
     for method, prefix, beta in (("rm", "rm", None), ("dpo", "dpo", beta_for_lr)):

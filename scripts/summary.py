@@ -1,7 +1,6 @@
 import argparse
 import glob
 import json
-import math
 import os
 import sys
 
@@ -9,6 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 from common import load_config, write_json
+from select_best import best_beta_run
 from stats import accuracy, accuracy_interval, correctness, hypothesis_verdict
 
 
@@ -46,9 +46,7 @@ def main():
               f"{m['last_logged_train_loss']:10.4f} {m['seconds_per_step']:9.2f} {m['total_minutes']:8.1f}")
 
     # the best beta is chosen on validation accuracy only, a tie goes to the smaller beta
-    dpo_runs = [m for m in runs if m["method"] == "dpo" and m["lr"] == selected["dpo"]["lr"]
-                and not math.isnan(m["val_accuracy"])]
-    best_dpo = min(dpo_runs, key=lambda m: (-m["val_accuracy"], m["beta"]))
+    best_dpo, dpo_runs = best_beta_run(tier_dir, selected, cfg["seed"])
     rm_dir = selected["rm"]["run_dir"]
 
     print(f"\ntest accuracy, 95 percent paired bootstrap interval")

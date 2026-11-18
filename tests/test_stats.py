@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from stats import (accuracy, accuracy_interval, bootstrap_means, correctness, difference_interval,
-                   hypothesis_verdict)
+from stats import (accuracy, accuracy_interval, bootstrap_means, category_difference_intervals, category_intervals,
+                   correctness, difference_interval, hypothesis_verdict, ordering_label, section_average_interval)
 
 
 def test_correctness_and_ties():
@@ -91,3 +91,41 @@ def test_verdict_for_given_intervals_in_points(monkeypatch, lo, hi, expected):
 def test_verdict_for_identical_rankers_is_supported():
     v = np.random.default_rng(2).integers(0, 2, 300).astype(float)
     assert hypothesis_verdict(v, v)["verdict"] == "supported (within 3 points)"
+
+
+def test_category_intervals_resample_inside_each_category():
+    # category a is always right, category b is always wrong: the intervals must be exactly 1 and 0
+    correct = np.array([1.0] * 30 + [0.0] * 20)
+    cats = np.array(["a"] * 30 + ["b"] * 20)
+    out = category_intervals(correct, cats)
+    assert out["a"]["n"] == 30 and out["a"]["accuracy"] == 1 and out["a"]["lo"] == 1 and out["a"]["hi"] == 1
+    assert out["b"]["n"] == 20 and out["b"]["accuracy"] == 0 and out["b"]["hi"] == 0
+
+
+def test_section_average_is_the_mean_of_category_accuracies_not_the_pair_accuracy():
+    # 90 pairs at 100 percent and 10 pairs at 0 percent: the pair accuracy is 0.9, the section average is 0.5
+    correct = np.array([1.0] * 90 + [0.0] * 10)
+    cats = np.array(["big"] * 90 + ["small"] * 10)
+    out = section_average_interval(correct, cats)
+    assert out["accuracy"] == 0.5 and out["lo"] == 0.5 and out["hi"] == 0.5
+    assert correct.mean() == 0.9
+
+
+def test_category_difference_is_paired_inside_the_category():
+    a = np.array([1.0, 1.0, 1.0, 1.0, 0.0, 0.0])
+    b = np.array([1.0, 0.0, 1.0, 0.0, 0.0, 0.0])
+    cats = np.array(["x", "x", "x", "x", "y", "y"])
+    out = category_difference_intervals(a, b, cats)
+    assert out["x"]["difference"] == 0.5 and out["y"]["difference"] == 0 and out["y"]["lo"] == 0 and out["y"]["hi"] == 0
+
+
+@pytest.mark.parametrize("a, b, expected", [
+    ((1, 3), (2, 5), "same"),
+    ((-3, -1), (-5, -2), "same"),
+    ((1, 3), (-5, -2), "reversed"),
+    ((-1, 3), (2, 5), "unclear"),
+    ((1, 3), (-2, 5), "unclear"),
+])
+def test_ordering_is_same_or_reversed_only_when_both_intervals_exclude_zero(a, b, expected):
+    make = lambda lo_hi: {"lo": lo_hi[0], "hi": lo_hi[1]}
+    assert ordering_label(make(a), make(b)) == expected

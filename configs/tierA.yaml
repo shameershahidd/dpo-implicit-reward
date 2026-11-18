@@ -10,6 +10,10 @@ max_response_tokens: 128
 # reward-bench limits, used for evaluation only
 rb_max_prompt_tokens: 512
 rb_max_response_tokens: 256
+# null means every reward-bench pair is scored
+rb_max_pairs: null
+# the real tiers score the reward model and every beta
+rb_all_betas: true
 data_dir: data/processed
 per_device_batch_size: 2
 grad_accum_steps: 8

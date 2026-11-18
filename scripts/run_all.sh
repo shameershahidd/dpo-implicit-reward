@@ -56,3 +56,7 @@ $PYTHON scripts/check_b.py --config $CONFIG --run_dirs $SCORED
 
 echo "== 7. summary"
 $PYTHON scripts/summary.py --config $CONFIG
+
+echo "== 8. rewardbench scoring and analysis (models and best beta are already fixed, nothing here selects anything)"
+try $PYTHON src/rewardbench_eval.py --config $CONFIG
+try $PYTHON src/analyze.py --config $CONFIG

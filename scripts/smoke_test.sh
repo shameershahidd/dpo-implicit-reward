@@ -12,6 +12,11 @@ rm -rf results/smoke
 # test scoring, baselines and the summary with the verdict
 RM_LRS=1e-4 DPO_LRS=5e-5 BETAS="0.05 0.1" bash scripts/run_all.sh smoke
 
+# run_all.sh logs a failed step and goes on, so the smoke test itself must fail if anything was logged
+if [ -f results/smoke/failures.log ]; then
+  echo "a step failed inside run_all.sh:"; cat results/smoke/failures.log; exit 1
+fi
+
 # validation scores are needed for check b, the stats command is checked on the test split
 RM=$(ls -d results/smoke/rm_lr*)
 DPO=$(ls -d results/smoke/dpo_beta0.1_*)
