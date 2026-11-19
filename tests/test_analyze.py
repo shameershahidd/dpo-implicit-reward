@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from analyze import (agreement, bucketed, chosen_longer_label, length_bucket, margin_bucket, strict_right,
+from analyze import (agreement, bucketed, rewardbench_length, chosen_longer_label, length_bucket, margin_bucket, strict_right,
                      sum_vs_mean)
 from rewardbench_eval import effect_of_excluding, subset_report, subsample
 
@@ -84,3 +84,27 @@ def test_excluding_mismatch_pairs_changes_n_accuracy_and_can_change_the_verdict(
     assert everything["reward_model_minus_best_dpo"]["verdict"].startswith("refuted")
     assert without["reward_model_minus_best_dpo"]["verdict"].startswith("supported")
     assert "CHANGES" in effect_of_excluding(everything["reward_model_minus_best_dpo"], without["reward_model_minus_best_dpo"])
+
+
+def test_rewardbench_length_splits_safety_and_baseline():
+    # 4 pairs: chosen is longer in the first two (category Chat) and shorter in the last two (category Safety)
+    # the reward model is right on every pair, dpo only on the pairs where the chosen response is longer
+    rm = fake_scores([1, 1, 1, 1], [0, 0, 0, 0])
+    dpo = fake_scores([1, 1, 0, 0], [0, 0, 1, 1])
+    for df in (rm, dpo):
+        df["chosen_len_orig"], df["rejected_len_orig"] = [10, 10, 5, 5], [5, 5, 10, 10]
+        df["chosen_tokens"], df["rejected_tokens"] = [10, 10, 5, 5], [5, 5, 10, 10]
+        df["category"] = ["Chat", "Chat", "Safety", "Safety"]
+        df["subset"] = ["alpacaeval-easy", "alpacaeval-easy", "donotanswer", "xstest-should-refuse"]
+    out = rewardbench_length(rm, dpo)
+    longer, shorter = out["by_chosen_longer_orig"]["overall"]
+    assert longer["bucket"] == "chosen longer" and longer["n"] == 2 and longer["rm"]["accuracy"] == 1.0 and longer["dpo"]["accuracy"] == 1.0
+    assert shorter["n"] == 2 and shorter["rm"]["accuracy"] == 1.0 and shorter["dpo"]["accuracy"] == 0.0
+    assert longer["longer_wins"]["accuracy"] == 1.0 and shorter["longer_wins"]["accuracy"] == 0.0
+    safety = out["by_chosen_longer_orig"]["per_category"]["Safety"]
+    assert [b["bucket"] for b in safety] == ["chosen shorter"] and safety[0]["n"] == 2 and safety[0]["dpo"]["accuracy"] == 0.0
+    subsets = {r["subset"]: r for r in out["safety_subsets"]["dpo"]}
+    assert set(subsets) == {"donotanswer", "xstest-should-refuse"} and subsets["donotanswer"]["n"] == 1
+    assert out["longer_wins_baseline"]["overall"]["accuracy"] == 0.5
+    assert out["longer_wins_baseline"]["per_category"]["Chat"]["accuracy"] == 1.0
+    assert out["longer_wins_baseline"]["per_category"]["Safety"]["accuracy"] == 0.0

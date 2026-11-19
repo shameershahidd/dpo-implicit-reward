@@ -19,13 +19,17 @@ from scipy.stats import spearmanr
 from common import load_config, write_json
 from score import read_rows
 from select_best import best_beta_run
-from stats import accuracy_interval, correctness, difference_interval
+from stats import accuracy_interval, category_intervals, correctness, difference_interval
 
 LENGTH_BINS = [-np.inf, -100, -20, 20, 100, np.inf]
 LENGTH_LABELS = ["<= -100", "-99 to -20", "-19 to 20", "21 to 100", "> 100"]
 MARGIN_BINS = [-np.inf, 0.5, 1.0, 2.0, np.inf]
 MARGIN_LABELS = ["<= 0.5", "0.5 to 1", "1 to 2", "> 2"]
 LONGER_LABELS = ["chosen longer", "chosen shorter", "equal length"]
+SAFETY_SUBSETS = ["refusals-dangerous", "refusals-offensive", "xstest-should-refuse", "xstest-should-respond", "donotanswer"]
+LENGTH_STATEMENT = ("These numbers show whether each model's accuracy moves with the chosen response being longer or shorter, "
+                    "and how a pure longer-wins rule scores on the same pairs, which is evidence for or against a length shortcut "
+                    "but cannot prove why a model prefers a response, because length is also tangled with answer quality.")
 
 
 def strict_right(df, mean=False):
@@ -88,6 +92,40 @@ def sum_vs_mean(df):
     c_mean = correctness(df["mean_chosen"], df["mean_rejected"])
     return {"sum": accuracy_interval(c_sum), "mean": accuracy_interval(c_mean),
             "mean_minus_sum": difference_interval(c_mean, c_sum)}
+
+
+def accuracy_rows(df, column, order):
+    # accuracy with an interval and n for each value of a column, in the given order, a value with no pairs is left out
+    rows = []
+    for value in order:
+        sub = df[df[column] == value]
+        if len(sub):
+            rows.append({column: value, "n": len(sub),
+                         **accuracy_interval(correctness(sub["score_chosen"], sub["score_rejected"]))})
+    return rows
+
+
+def rewardbench_length(rm, dpo):
+    # rm and dpo: the saved reward-bench scores of the two models, same pairs in the same order (dpo is the sum score)
+    # the longer-wins baseline always uses the original lengths, a tie in length counts as half
+    baseline = rm.copy()
+    baseline["score_chosen"], baseline["score_rejected"] = rm["chosen_len_orig"], rm["rejected_len_orig"]
+    frames = {"rm": rm, "dpo": dpo, "longer_wins": baseline}
+    out = {"pairs": len(rm)}
+    for key, (chosen, rejected) in (("orig", ("chosen_len_orig", "rejected_len_orig")),
+                                    ("tokens", ("chosen_tokens", "rejected_tokens"))):
+        entry = {"overall": bucketed(frames, chosen_longer_label(rm[chosen], rm[rejected]), LONGER_LABELS), "per_category": {}}
+        for cat in sorted(rm["category"].unique()):
+            mask = (rm["category"] == cat).to_numpy()
+            sub = {name: df[mask].reset_index(drop=True) for name, df in frames.items()}
+            entry["per_category"][cat] = bucketed(sub, chosen_longer_label(sub["rm"][chosen], sub["rm"][rejected]), LONGER_LABELS)
+        out["by_chosen_longer_" + key] = entry
+    out["safety_subsets"] = {name: accuracy_rows(df, "subset", SAFETY_SUBSETS) for name, df in (("rm", rm), ("dpo", dpo))}
+    c = correctness(baseline["score_chosen"], baseline["score_rejected"])
+    out["longer_wins_baseline"] = {"overall": {"n": len(c), **accuracy_interval(c)},
+                                   "per_category": category_intervals(c, baseline["category"].to_numpy())}
+    out["statement"] = LENGTH_STATEMENT
+    return out
 
 
 def clip(text, limit=600):
@@ -207,6 +245,27 @@ def bucket_table(rows, names):
                  [[r["bucket"], r["n"], *[ci(r[n]) for n in names], r["only_rm_right"], r["only_dpo_right"]] for r in rows])
 
 
+def rewardbench_length_markdown(r):
+    out = [f"## RewardBench: length and safety subsets ({r['pairs']} pairs, reward model vs best-beta DPO sum score)", "",
+           LENGTH_STATEMENT, ""]
+    for key, title in (("orig", "tokens before truncation"), ("tokens", "tokens after truncation")):
+        entry = r["by_chosen_longer_" + key]
+        out += [f"### accuracy by whether the chosen response is longer ({title}), all categories", "",
+                bucket_table(entry["overall"], ["rm", "dpo", "longer_wins"]), ""]
+        for cat, rows in entry["per_category"].items():
+            out += [f"#### {cat}", "", bucket_table(rows, ["rm", "dpo", "longer_wins"]), ""]
+    by_subset = {name: {row["subset"]: row for row in rows} for name, rows in r["safety_subsets"].items()}
+    out += ["### safety-related subsets", "",
+            table(["subset", "n", "reward model", "dpo"],
+                  [[sub, by_subset["rm"][sub]["n"], ci(by_subset["rm"][sub]), ci(by_subset["dpo"][sub])]
+                   for sub in by_subset["rm"]]), "",
+            "### longer-wins baseline on RewardBench", "",
+            table(["pairs", "n", "accuracy [95% interval]"],
+                  [["all", r["longer_wins_baseline"]["overall"]["n"], ci(r["longer_wins_baseline"]["overall"])],
+                   *[[cat, v["n"], ci(v)] for cat, v in r["longer_wins_baseline"]["per_category"].items()]]), ""]
+    return out
+
+
 def render_markdown(s):
     out = [f"# {s['tier']} summary, seed {s['seed']}", "",
            "every number below is read from the json files in this folder. accuracy counts a tie as half a point, "
@@ -248,6 +307,7 @@ def render_markdown(s):
             f"verdict **{ex['reward_model_minus_best_dpo']['verdict']}**, "
             f"ordering versus the test split **{ex['reward_model_minus_best_dpo']['ordering_vs_test_split']}**.", "",
             ex["effect"] + ".", ""]
+    out += rewardbench_length_markdown(s["rewardbench_length"])
     a = s["agreement"]
     out += ["## agreement on the test split (reward model vs best-beta DPO, strict correctness)", "",
             table(["", "dpo right", "dpo wrong"],
@@ -330,6 +390,11 @@ def main():
         path = os.path.join(tier_dir, f"rewardbench_dpo_beta{m['beta']:g}.jsonl")
         if os.path.exists(path):
             summary["sum_vs_mean"]["rewardbench"][f"{m['beta']:g}"] = sum_vs_mean(pd.read_json(path, lines=True, dtype=False))
+
+    # reward-bench length and safety analysis, from the saved per-pair scores
+    rb_frames = [pd.read_json(os.path.join(tier_dir, f"rewardbench_{name}.jsonl"), lines=True, dtype=False)
+                 for name in ("rm", best_name)]
+    summary["rewardbench_length"] = rewardbench_length(*rb_frames)
 
     rows_by_id = {r["id"]: r for r in read_rows(cfg, "test")}
     write_examples(os.path.join(tier_dir, "disagreement_examples.md"), rm, dpo, rows_by_id, cfg["seed"])
